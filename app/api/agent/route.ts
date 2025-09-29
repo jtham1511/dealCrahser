@@ -7,7 +7,7 @@ type ChatRequestBody = {
   message?: unknown;
 };
 
-type AzureChatCompletion = {
+type OpenAIChatCompletion = {
   choices?: Array<{
     message?: {
       content?: string;
@@ -35,26 +35,21 @@ export async function POST(req: NextRequest) {
     : 'Hello';
 
   try {
-    const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
-    const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
-    const apiVersion = process.env.AZURE_OPENAI_API_VERSION;
-    const apiKey = process.env.AZURE_OPENAI_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY;
+    const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
 
-    validateEnv('AZURE_OPENAI_ENDPOINT', endpoint);
-    validateEnv('AZURE_OPENAI_DEPLOYMENT', deployment);
-    validateEnv('AZURE_OPENAI_API_VERSION', apiVersion);
-    validateEnv('AZURE_OPENAI_API_KEY', apiKey);
+    validateEnv('OPENAI_API_KEY', apiKey);
 
-    const url = new URL(`/openai/deployments/${deployment}/chat/completions`, endpoint);
-    url.searchParams.set('api-version', apiVersion);
+    const url = 'https://api.openai.com/v1/chat/completions';
 
-    const response = await fetch(url.toString(), {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        'api-key': apiKey,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
+        model,
         messages: [
           {
             role: 'system',
@@ -71,11 +66,32 @@ export async function POST(req: NextRequest) {
     });
 
     if (!response.ok) {
-      const detail = await response.text();
-      return NextResponse.json({ error: 'LLM error', detail }, { status: 500 });
+      const fallbackStatus = response.status >= 400 && response.status <= 599 ? response.status : 500;
+      const contentType = response.headers.get('content-type') ?? '';
+      let detail: unknown;
+
+      if (contentType.includes('application/json')) {
+        try {
+          detail = await response.json();
+        } catch {
+          detail = await response.text();
+        }
+      } else {
+        detail = await response.text();
+      }
+
+      return NextResponse.json(
+        {
+          error: 'LLM error',
+          detail,
+          status: response.status,
+          statusText: response.statusText,
+        },
+        { status: fallbackStatus },
+      );
     }
 
-    const data = (await response.json()) as AzureChatCompletion;
+    const data = (await response.json()) as OpenAIChatCompletion;
     const text = data?.choices?.[0]?.message?.content ?? '';
 
     return NextResponse.json({ text });

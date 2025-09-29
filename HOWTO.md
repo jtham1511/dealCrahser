@@ -3,10 +3,8 @@
 ## Deploy
 1. Push to GitHub and import the repo in Vercel.
 2. Add Env Vars in Vercel → Settings → Environment Variables:
-   - AZURE_OPENAI_ENDPOINT = https://<your-resource>.openai.azure.com
-   - AZURE_OPENAI_API_KEY = <key>
-   - AZURE_OPENAI_DEPLOYMENT = gpt-4o-mini
-   - AZURE_OPENAI_API_VERSION = 2024-10-21
+   - OPENAI_API_KEY = <key>
+   - OPENAI_MODEL = gpt-4o-mini
 3. Visit `/` → redirects to `/INDEX.html` (your Demo_0005).
 
 ## Excel-driven refresh
