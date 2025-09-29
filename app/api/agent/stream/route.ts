@@ -3,12 +3,28 @@ export const preferredRegion=['sin1','hkg1','bom1'];
 import { NextRequest } from 'next/server';
 export async function POST(req: NextRequest) {
   const { message } = await req.json();
+  const apiKey = process.env.OPENAI_API_KEY;
+  const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+
+  if (!apiKey || !model) {
+    return new Response(
+      `event: error\ndata: ${JSON.stringify({ detail: 'Missing required environment variables for OpenAI' })}\n\n`,
+      {
+        headers: {
+          'Content-Type': 'text/event-stream; charset=utf-8',
+          'Cache-Control': 'no-cache, no-transform',
+          Connection: 'keep-alive',
+        },
+        status: 500,
+      },
+    );
+  }
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller){
       try{
-        const url = `${process.env.AZURE_OPENAI_ENDPOINT}/openai/deployments/${process.env.AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=${process.env.AZURE_OPENAI_API_VERSION}`;
-        const resp = await fetch(url, { method:'POST', headers:{ 'content-type':'application/json', 'api-key': process.env.AZURE_OPENAI_API_KEY! }, body: JSON.stringify({ messages:[{role:'system',content:'You are a helpful assistant for a Singapore Government analysis portal.'},{role:'user',content: message||'Hello'}], temperature:0.2, max_tokens:600, stream:true }) });
+        const url = 'https://api.openai.com/v1/chat/completions';
+        const resp = await fetch(url, { method:'POST', headers:{ 'content-type':'application/json', Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model, messages:[{role:'system',content:'You are a helpful assistant for a Singapore Government analysis portal.'},{role:'user',content: message||'Hello'}], temperature:0.2, max_tokens:600, stream:true }) });
         if(!resp.ok || !resp.body){ const detail = await resp.text(); controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ detail })}\n\n`)); controller.close(); return; }
         const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buffer='';
         while(true){ const { value, done } = await reader.read(); if(done) break; buffer += decoder.decode(value, { stream:true });
