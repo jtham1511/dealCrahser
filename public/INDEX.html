@@ -1223,14 +1223,17 @@
                         </button>
                     </div>
                 </div>
-                <h3 style="margin:0 0 8px 0;">AI Discovery Bot</h3>
-                <div class="chat-card">
-                    <div class="chat-row">
-                        <textarea id="ai-chat-input" class="chat-input" placeholder="Ask the agent about usage, costs, or insights..."></textarea>
-                        <button id="ai-chat-send" class="chat-send">Send</button>
-                        <small class="chat-hint"> Powered by OpenAI Platform</small>
+                <div class="card">
+                    <h3 style="margin:0 0 8px 0;">AI Discovery Bot</h3><small class="chat-hint"> Powered by OpenAI Platform</small>
+                    <div class="chat-card">
+                        <div class="chat-interface">
+                            <div class="chat-row">
+                                <textarea id="ai-chat-input" class="chat-input" placeholder="Ask the agent about usage, costs, or insights..."></textarea>
+                                <button id="ai-chat-send" class="chat-send"><i class="fas fa-paper-plane"></i></button>
+                            </div>
+                            <div id="ai-chat-output" class="chat-output"></div>
+                        </div>
                     </div>
-                    <div id="ai-chat-output" class="chat-output"></div>
                 </div>
   <!--          <div class="card">
                     <h3>AI Chat Interface</h3>
