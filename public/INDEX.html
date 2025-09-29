@@ -391,11 +391,11 @@
                 <h1><i class="fas fa-chart-line"></i> Gartner Contract Evaluation Platform</h1>
                 <p>Intelligent analytics for procurement decision-making</p>
             </div>
-            <div class="header-actions">
+<!--            <div class="header-actions">
                 <a class="btn btn-secondary" href="https://ai.azure.com/ai-discovery-chat" target="_blank" rel="noopener noreferrer">
                     <i class="fas fa-comments"></i> AI Discovery Chat
                 </a>
-            </div>
+            </div>    -->
         </div>
         <div class="container" style="text-align: right;">
             <p>All Right Reserved CET dealBreaker Team 2025</p>
@@ -1198,15 +1198,7 @@
     .chat-output { margin-top:10px; min-height:140px; padding:12px; background:#0b0f1a0a; border:1px dashed #cbd5e1; border-radius:10px; white-space:pre-wrap; overflow:auto; }
     .chat-hint { font-size:12px; opacity:.75; margin-left:8px; }
   </style>
-  <h3 style="margin:0 0 8px 0;">AI Discovery Bot</h3>
-  <div class="chat-card">
-    <div class="chat-row">
-      <textarea id="ai-chat-input" class="chat-input" placeholder="Ask the agent about usage, costs, or insights..."></textarea>
-      <button id="ai-chat-send" class="chat-send">Send</button>
-      <small class="chat-hint">OpenAI Platform</small>
-    </div>
-    <div id="ai-chat-output" class="chat-output"></div>
-  </div>
+
 </section>
 
 
@@ -1231,7 +1223,16 @@
                         </button>
                     </div>
                 </div>
-                <div class="card">
+                <h3 style="margin:0 0 8px 0;">AI Discovery Bot</h3>
+                <div class="chat-card">
+                    <div class="chat-row">
+                        <textarea id="ai-chat-input" class="chat-input" placeholder="Ask the agent about usage, costs, or insights..."></textarea>
+                        <button id="ai-chat-send" class="chat-send">Send</button>
+                        <small class="chat-hint"> Powered by OpenAI Platform</small>
+                    </div>
+                    <div id="ai-chat-output" class="chat-output"></div>
+                </div>
+  <!--          <div class="card">
                     <h3>AI Chat Interface</h3>
                     <div class="chat-interface">
                         <div class="chat-messages" id="chatMessages">
@@ -1246,9 +1247,8 @@
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>   -->
             </div>
-
             <!-- Generated Insights -->
             <div class="card" id="generatedInsights" style="display: none;">
                 <h3>Generated Analysis</h3>
