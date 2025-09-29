@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Refresh Demo_0005-based INDEX.html from Soha-Usage-Price-updated.xlsx:
+Refresh Demo_0005-based index.html from Soha-Usage-Price-updated.xlsx:
 - KPIs with "Data as of" and status pills (APV utilization, Survey)
 - Top Users (with Conferences), Recommendations, At-Risk tables
 - CSV exports to public/data/
@@ -167,7 +167,7 @@ def patch(html, data, as_of_str):
 
 def main():
     if len(sys.argv) != 3:
-        print("Usage: python tools/refresh_index.py <excel> <public/INDEX.html>")
+        print("Usage: python tools/refresh_index.py <excel> <public/index.html>")
         sys.exit(1)
     xlsx, html_path = sys.argv[1], sys.argv[2]
     data = compute(xlsx)
@@ -180,7 +180,7 @@ def main():
     pd.DataFrame(data["remove"]).to_csv(out_dir / "remove_seats.csv", index=False)
     pd.DataFrame(data["down"]).to_csv(out_dir / "downgrade_candidates.csv", index=False)
     data["at_risk"].to_csv(out_dir / "at_risk_teams.csv", index=False)
-    print("OK: refreshed INDEX.html and CSVs.")
+    print("OK: refreshed index.html and CSVs.")
 
 if __name__ == "__main__":
     main()
