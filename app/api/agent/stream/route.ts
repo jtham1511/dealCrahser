@@ -3,9 +3,18 @@ export const preferredRegion = ['sin1', 'hkg1', 'bom1'];
 
 import { NextRequest } from 'next/server';
 
-type ChatRequestBody = {
-  message?: unknown;
-};
+import {
+  DEFAULT_MAX_TOKENS,
+  DEFAULT_MODEL,
+  DEFAULT_TEMPERATURE,
+  OPENAI_CHAT_URL,
+  buildMessages,
+  getUserMessage,
+  type ChatRequestBody,
+  validateEnv,
+} from '../shared';
+
+type OpenAIErrorDetail = unknown;
 
 const SSE_HEADERS = {
   'Content-Type': 'text/event-stream; charset=utf-8',
@@ -13,14 +22,22 @@ const SSE_HEADERS = {
   Connection: 'keep-alive',
 } as const;
 
-function validateEnv(variable: string, value: string | undefined): asserts value is string {
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${variable}`);
-  }
-}
-
 function formatSSE(event: string, data: unknown) {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+}
+
+async function readErrorDetail(response: Response): Promise<OpenAIErrorDetail> {
+  const contentType = response.headers.get('content-type') ?? '';
+
+  if (contentType.includes('application/json')) {
+    try {
+      return await response.json();
+    } catch {
+      return await response.text();
+    }
+  }
+
+  return await response.text();
 }
 
 export async function POST(req: NextRequest) {
@@ -35,22 +52,18 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const userMessage = typeof body?.message === 'string' && body.message.trim().length > 0
-    ? body.message
-    : 'Hello';
+  const userMessage = getUserMessage(body, 'Hello');
 
   try {
     const apiKey = process.env.OPENAI_API_KEY;
-    const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+    const model = process.env.OPENAI_MODEL ?? DEFAULT_MODEL;
 
     validateEnv('OPENAI_API_KEY', apiKey);
-
-    const url = 'https://api.openai.com/v1/chat/completions';
 
     let upstream: Response;
 
     try {
-      upstream = await fetch(url, {
+      upstream = await fetch(OPENAI_CHAT_URL, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -58,18 +71,9 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           model,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a helpful assistant for a Singapore Government analysis portal.',
-            },
-            {
-              role: 'user',
-              content: userMessage,
-            },
-          ],
-          temperature: 0.2,
-          max_tokens: 600,
+          messages: buildMessages(userMessage),
+          temperature: DEFAULT_TEMPERATURE,
+          max_tokens: DEFAULT_MAX_TOKENS,
           stream: true,
         }),
       });
@@ -84,18 +88,7 @@ export async function POST(req: NextRequest) {
     const fallbackStatus = upstream.status >= 400 && upstream.status <= 599 ? upstream.status : 500;
 
     if (!upstream.ok || !upstream.body) {
-      const contentType = upstream.headers.get('content-type') ?? '';
-      let detail: unknown;
-
-      if (contentType.includes('application/json')) {
-        try {
-          detail = await upstream.json();
-        } catch {
-          detail = await upstream.text();
-        }
-      } else {
-        detail = await upstream.text();
-      }
+      const detail = await readErrorDetail(upstream);
 
       return new Response(formatSSE('error', {
         detail,
