@@ -16,3 +16,13 @@ pip install pandas numpy openpyxl
 python tools\refresh_index.py Soha-Usage-Price-updated.xlsx public\INDEX.html
 ```
 This recomputes KPIs, Top Users (with Conferences), Recommendations, At‑Risk and exports CSVs to `public/data/`.
+
+
+## Verify agent endpoints locally
+Use the mocked OpenAI harness to exercise both agent handlers without calling the real API:
+
+```bash
+node --loader ./tools/ts-loader.mjs tools/test-agent.mjs
+```
+
+The script streams fake OpenAI responses through the route logic and asserts that both synchronous and streaming endpoints emit the expected payloads and completion events.
