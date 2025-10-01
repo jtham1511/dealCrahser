@@ -8,10 +8,32 @@ export const DEFAULT_TEMPERATURE = 0.2;
 export const DEFAULT_MAX_TOKENS = 600;
 export const SYSTEM_PROMPT = 'You are a helpful assistant for a Singapore Government analysis portal.';
 
+export type OpenAIHeaderOptions = {
+  organization?: string | undefined;
+  project?: string | undefined;
+};
+
 export function validateEnv(variable: string, value: string | undefined): asserts value is string {
   if (!value) {
     throw new Error(`Missing required environment variable: ${variable}`);
   }
+}
+
+export function createOpenAIHeaders(apiKey: string, options: OpenAIHeaderOptions = {}) {
+  const headers: Record<string, string> = {
+    'content-type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
+  };
+
+  if (options.organization) {
+    headers['OpenAI-Organization'] = options.organization;
+  }
+
+  if (options.project) {
+    headers['OpenAI-Project'] = options.project;
+  }
+
+  return headers;
 }
 
 export function getUserMessage(body: ChatRequestBody | undefined, fallback: string): string {

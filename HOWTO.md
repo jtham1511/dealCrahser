@@ -5,6 +5,8 @@
 2. Add Env Vars in Vercel → Settings → Environment Variables:
    - OPENAI_API_KEY = <key>
    - OPENAI_MODEL = gpt-4o-mini
+   - OPENAI_ORGANIZATION = <org-id> (optional, for account-scoped keys)
+   - OPENAI_PROJECT_ID = <project-id> (optional, for project-scoped keys)
 3. Visit `/` → redirects to `/INDEX.html` (your Demo_0005).
 
 ## Excel-driven refresh

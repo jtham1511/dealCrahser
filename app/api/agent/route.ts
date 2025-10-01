@@ -9,6 +9,7 @@ import {
   DEFAULT_TEMPERATURE,
   OPENAI_CHAT_URL,
   buildMessages,
+  createOpenAIHeaders,
   getUserMessage,
   readErrorDetail,
   type ChatRequestBody,
@@ -37,15 +38,14 @@ export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     const model = process.env.OPENAI_MODEL ?? DEFAULT_MODEL;
+    const organization = process.env.OPENAI_ORGANIZATION?.trim();
+    const project = (process.env.OPENAI_PROJECT_ID ?? process.env.OPENAI_PROJECT)?.trim();
 
     validateEnv('OPENAI_API_KEY', apiKey);
 
     const response = await fetch(OPENAI_CHAT_URL, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: createOpenAIHeaders(apiKey, { organization, project }),
       body: JSON.stringify({
         model,
         messages: buildMessages(userMessage),
