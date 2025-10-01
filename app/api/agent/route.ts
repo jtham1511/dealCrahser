@@ -10,6 +10,7 @@ import {
   OPENAI_CHAT_URL,
   buildMessages,
   getUserMessage,
+  readErrorDetail,
   type ChatRequestBody,
   validateEnv,
 } from './shared';
@@ -55,18 +56,7 @@ export async function POST(req: NextRequest) {
 
     if (!response.ok) {
       const fallbackStatus = response.status >= 400 && response.status <= 599 ? response.status : 500;
-      const contentType = response.headers.get('content-type') ?? '';
-      let detail: unknown;
-
-      if (contentType.includes('application/json')) {
-        try {
-          detail = await response.json();
-        } catch {
-          detail = await response.text();
-        }
-      } else {
-        detail = await response.text();
-      }
+      const detail = await readErrorDetail(response);
 
       return NextResponse.json(
         {

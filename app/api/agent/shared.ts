@@ -25,3 +25,17 @@ export function buildMessages(userMessage: string) {
     { role: 'user' as const, content: userMessage },
   ];
 }
+
+export async function readErrorDetail(response: Response): Promise<unknown> {
+  const contentType = response.headers.get('content-type') ?? '';
+
+  if (contentType.includes('application/json')) {
+    try {
+      return await response.json();
+    } catch {
+      return await response.text();
+    }
+  }
+
+  return await response.text();
+}

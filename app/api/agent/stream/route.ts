@@ -10,11 +10,10 @@ import {
   OPENAI_CHAT_URL,
   buildMessages,
   getUserMessage,
+  readErrorDetail,
   type ChatRequestBody,
   validateEnv,
 } from '../shared';
-
-type OpenAIErrorDetail = unknown;
 
 const SSE_HEADERS = {
   'Content-Type': 'text/event-stream; charset=utf-8',
@@ -24,20 +23,6 @@ const SSE_HEADERS = {
 
 function formatSSE(event: string, data: unknown) {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-}
-
-async function readErrorDetail(response: Response): Promise<OpenAIErrorDetail> {
-  const contentType = response.headers.get('content-type') ?? '';
-
-  if (contentType.includes('application/json')) {
-    try {
-      return await response.json();
-    } catch {
-      return await response.text();
-    }
-  }
-
-  return await response.text();
 }
 
 export async function POST(req: NextRequest) {
@@ -106,6 +91,18 @@ export async function POST(req: NextRequest) {
 
     const stream = new ReadableStream({
       async start(controller) {
+        let released = false;
+        const releaseReader = () => {
+          if (!released) {
+            try {
+              reader.releaseLock();
+            } catch {
+              // Ignore release errors; the reader may already be released.
+            }
+            released = true;
+          }
+        };
+
         try {
           let buffer = '';
 
@@ -128,6 +125,7 @@ export async function POST(req: NextRequest) {
               const data = line.slice(5).trim();
               if (data === '[DONE]') {
                 controller.enqueue(encoder.encode(formatSSE('done', {})));
+                releaseReader();
                 controller.close();
                 return;
               }
@@ -136,24 +134,29 @@ export async function POST(req: NextRequest) {
                 const obj = JSON.parse(data);
                 const delta = obj?.choices?.[0]?.delta?.content;
                 if (delta) {
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`));
+                  controller.enqueue(encoder.encode(formatSSE('message', { text: delta })));
                 }
               } catch (error) {
                 controller.enqueue(encoder.encode(formatSSE('error', {
                   detail: error instanceof Error ? error.message : String(error),
                 })));
+                releaseReader();
                 controller.close();
                 return;
               }
             }
           }
 
+          releaseReader();
           controller.close();
         } catch (error) {
           controller.enqueue(encoder.encode(formatSSE('error', {
             detail: error instanceof Error ? error.message : String(error),
           })));
+          releaseReader();
           controller.close();
+        } finally {
+          releaseReader();
         }
       },
     });
