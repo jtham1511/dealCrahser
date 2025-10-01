@@ -1,42 +1,118 @@
-export const runtime='edge';
-export const preferredRegion=['sin1','hkg1','bom1'];
-import { NextRequest } from 'next/server';
-export async function POST(req: NextRequest) {
-  const { message } = await req.json();
-  const apiKey = process.env.OPENAI_API_KEY;
-  const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+export const runtime = 'edge';
+export const preferredRegion = ['sin1', 'hkg1', 'bom1'];
 
-  if (!apiKey || !model) {
-    return new Response(
-      `event: error\ndata: ${JSON.stringify({ detail: 'Missing required environment variables for OpenAI' })}\n\n`,
-      {
-        headers: {
-          'Content-Type': 'text/event-stream; charset=utf-8',
-          'Cache-Control': 'no-cache, no-transform',
-          Connection: 'keep-alive',
-        },
-        status: 500,
-      },
-    );
-  }
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    async start(controller){
-      try{
-        const url = 'https://api.openai.com/v1/chat/completions';
-        const resp = await fetch(url, { method:'POST', headers:{ 'content-type':'application/json', Authorization: `Bearer ${apiKey}` }, body: JSON.stringify({ model, messages:[{role:'system',content:'You are a helpful assistant for a Singapore Government analysis portal.'},{role:'user',content: message||'Hello'}], temperature:0.2, max_tokens:600, stream:true }) });
-        if(!resp.ok || !resp.body){ const detail = await resp.text(); controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ detail })}\n\n`)); controller.close(); return; }
-        const reader = resp.body.getReader(); const decoder = new TextDecoder(); let buffer='';
-        while(true){ const { value, done } = await reader.read(); if(done) break; buffer += decoder.decode(value, { stream:true });
-          const lines = buffer.split('\n'); buffer = lines.pop() || '';
-          for(const raw of lines){ const line = raw.trim(); if(!line.startsWith('data:')) continue; const data = line.slice(5).trim();
-            if(data==='[DONE]'){ controller.enqueue(encoder.encode('event: done\ndata: {}\n\n')); controller.close(); return; }
-            try{ const obj = JSON.parse(data); const delta = obj?.choices?.[0]?.delta?.content; if(delta){ controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`)); } }catch{}
-          }
-        }
-        controller.close();
-      }catch(e){ controller.enqueue(encoder.encode(`event: error\ndata: ${JSON.stringify({ detail:String(e) })}\n\n`)); controller.close(); }
-    }
-  });
-  return new Response(stream, { headers:{ 'Content-Type':'text/event-stream; charset=utf-8', 'Cache-Control':'no-cache, no-transform', 'Connection':'keep-alive' } });
+import { NextRequest } from 'next/server';
+
+
+import {
+  DEFAULT_MAX_TOKENS,
+  DEFAULT_MODEL,
+  DEFAULT_TEMPERATURE,
+  OPENAI_CHAT_URL,
+  buildMessages,
+  getUserMessage,
+  type ChatRequestBody,
+  validateEnv,
+} from '../shared';
+
+
+type OpenAIErrorDetail = unknown;
+
+const SSE_HEADERS = {
+  'Content-Type': 'text/event-stream; charset=utf-8',
+  'Cache-Control': 'no-cache, no-transform',
+  Connection: 'keep-alive',
+} as const;
+
+function formatSSE(event: string, data: unknown) {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
+
+async function readErrorDetail(response: Response): Promise<OpenAIErrorDetail> {
+  const contentType = response.headers.get('content-type') ?? '';
+
+  if (contentType.includes('application/json')) {
+    try {
+      return await response.json();
+    } catch {
+      return await response.text();
+    }
+  }
+
+  return await response.text();
+}
+
+export async function POST(req: NextRequest) {
+  let body: ChatRequestBody;
+
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(formatSSE('error', { detail: 'Invalid JSON body' }), {
+      headers: SSE_HEADERS,
+      status: 400,
+    });
+  }
+
+  const userMessage = getUserMessage(body, 'Hello');
+
+  try {
+    const apiKey = process.env.OPENAI_API_KEY;
+    const model = process.env.OPENAI_MODEL ?? DEFAULT_MODEL;
+
+    validateEnv('OPENAI_API_KEY', apiKey);
+
+    let upstream: Response;
+
+    try {
+      upstream = await fetch(OPENAI_CHAT_URL, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: buildMessages(userMessage),
+          temperature: DEFAULT_TEMPERATURE,
+          max_tokens: DEFAULT_MAX_TOKENS,
+          stream: true,
+        }),
+      });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return new Response(formatSSE('error', { detail }), {
+        headers: SSE_HEADERS,
+        status: 504,
+      });
+    }
+
+    const fallbackStatus = upstream.status >= 400 && upstream.status <= 599 ? upstream.status : 500;
+
+    if (!upstream.ok || !upstream.body) {
+      const detail = await readErrorDetail(upstream);
+
+      return new Response(formatSSE('error', {
+        detail,
+        status: upstream.status,
+        statusText: upstream.statusText,
+      }), {
+        headers: SSE_HEADERS,
+        status: fallbackStatus,
+      });
+    }
+
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    const reader = upstream.body.getReader();
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          let buffer = '';
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) {
+              break;
+            }

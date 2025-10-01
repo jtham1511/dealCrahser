@@ -3,9 +3,16 @@ export const preferredRegion = ['sin1', 'hkg1', 'bom1'];
 
 import { NextRequest, NextResponse } from 'next/server';
 
-type ChatRequestBody = {
-  message?: unknown;
-};
+import {
+  DEFAULT_MAX_TOKENS,
+  DEFAULT_MODEL,
+  DEFAULT_TEMPERATURE,
+  OPENAI_CHAT_URL,
+  buildMessages,
+  getUserMessage,
+  type ChatRequestBody,
+  validateEnv,
+} from './shared';
 
 type OpenAIChatCompletion = {
   choices?: Array<{
@@ -15,11 +22,11 @@ type OpenAIChatCompletion = {
   }>;
 };
 
-function validateEnv(variable: string, value: string | undefined): asserts value is string {
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${variable}`);
-  }
-}
+// function validateEnv(variable: string, value: string | undefined): asserts value is string {
+//  if (!value) {
+//    throw new Error(`Missing required environment variable: ${variable}`);
+//  }
+//}
 
 export async function POST(req: NextRequest) {
   let body: ChatRequestBody;
@@ -30,19 +37,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const userMessage = typeof body?.message === 'string' && body.message.trim().length > 0
-    ? body.message
-    : 'Hello';
+//  const userMessage = typeof body?.message === 'string' && body.message.trim().length > 0
+//   ? body.message
+//    : 'Hello';
+  const userMessage = getUserMessage(body, 'Hello');
 
   try {
     const apiKey = process.env.OPENAI_API_KEY;
-    const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+//    const model = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+    const model = process.env.OPENAI_MODEL ?? DEFAULT_MODEL;
 
     validateEnv('OPENAI_API_KEY', apiKey);
 
-    const url = 'https://api.openai.com/v1/chat/completions';
+//    const url = 'https://api.openai.com/v1/chat/completions';
 
-    const response = await fetch(url, {
+//    const response = await fetch(url, {
+    const response = await fetch(OPENAI_CHAT_URL, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -50,18 +60,21 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a helpful assistant for a Singapore Government analysis portal.',
-          },
-          {
-            role: 'user',
-            content: userMessage,
-          },
-        ],
-        temperature: 0.2,
-        max_tokens: 500,
+//        messages: [
+//          {
+//            role: 'system',
+//            content: 'You are a helpful assistant for a Singapore Government analysis portal.',
+//          },
+//          {
+//            role: 'user',
+//            content: userMessage,
+//          },
+//        ],
+//        temperature: 0.2,
+//        max_tokens: 500,
+        messages: buildMessages(userMessage),
+        temperature: DEFAULT_TEMPERATURE,
+        max_tokens: DEFAULT_MAX_TOKENS,
       }),
     });
 
